@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#153c2d" />
+    <title>Pharmacy Operations</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <main class="auth-screen" id="auth-screen">
+      <section class="auth-card" aria-labelledby="auth-title">
+        <div class="auth-brand"><span class="brand-mark">+</span><div><strong>Pharmacy</strong><small>OPERATIONS WORKSPACE</small></div></div>
+        <div class="auth-copy"><p class="eyebrow">YOUR PHARMACY, ORGANIZED</p><h1 id="auth-title">Run your pharmacy with clarity.</h1><p>Keep products, stock, expiry dates, sales, and purchasing together in one private workspace.</p></div>
+        <div class="auth-feedback" id="auth-feedback" aria-live="polite"></div>
+        <section id="login-panel" class="auth-panel">
+          <div class="auth-panel-heading"><h2>Welcome back</h2><p>Sign in to your pharmacy account.</p></div>
+          <form id="login-form" class="auth-form">
+            <label>Email address<input name="email" type="email" autocomplete="username" required maxlength="254" placeholder="you@pharmacy.com" /></label>
+            <label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="1024" /></label>
+            <button class="button button-primary auth-submit" type="submit">Sign in <span>→</span></button>
+          </form>
+          <p class="auth-switch">New to Pharmacy? <button type="button" class="text-button" id="show-signup">Create an account</button></p>
+        </section>
+        <section id="signup-panel" class="auth-panel" hidden>
+          <div class="auth-panel-heading"><h2>Create your workspace</h2><p>Your pharmacy's records will be private to your account.</p></div>
+          <form id="signup-form" class="auth-form">
+            <label>Pharmacy name<input name="pharmacy_name" autocomplete="organization" required maxlength="200" placeholder="e.g. Nile Care Pharmacy" /></label>
+            <label>Your name<input name="full_name" autocomplete="name" required maxlength="200" placeholder="Full name" /></label>
+            <label>Email address<input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@pharmacy.com" /></label>
+            <label>Password <span class="optional">At least 12 characters</span><input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="1024" /></label>
+            <button class="button button-primary auth-submit" type="submit">Create private account <span>→</span></button>
+          </form>
+          <p class="auth-switch">Already have an account? <button type="button" class="text-button" id="show-login">Sign in</button></p>
+        </section>
+        <div class="auth-privacy"><span>▣</span> Your pharmacy data is isolated from other accounts.</div>
+      </section>
+    </main>
+
+    <div id="app-shell" hidden>
+    <div class="app-frame">
+      <aside class="sidebar">
+        <a class="brand" href="#overview" aria-label="Pharmacy home">
+          <span class="brand-mark">+</span>
+          <span class="brand-copy"><strong>Pharmacy</strong><small>OPERATIONS WORKSPACE</small></span>
+        </a>
+
+        <div class="workspace-label">WORKSPACE</div>
+        <nav class="primary-nav" aria-label="Main navigation">
+          <button class="nav-link active" data-view="overview"><span class="nav-icon">◫</span>Overview</button>
+          <button class="nav-link" data-view="chat" aria-label="AI chat"><span class="nav-icon">✳</span>AI chat</button>
+          <button class="nav-link" data-view="inventory"><span class="nav-icon">▦</span>Inventory</button>
+          <button class="nav-link" data-view="sales"><span class="nav-icon">↗</span>Sales</button>
+          <button class="nav-link" data-view="purchases"><span class="nav-icon">⇣</span>Purchasing</button>
+          <button class="nav-link" data-view="products"><span class="nav-icon">◇</span>Products</button>
+          <button class="nav-link" data-view="suppliers"><span class="nav-icon">♧</span>Suppliers</button>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="connection-state"><span class="status-dot"></span><span><strong>Private workspace</strong><small>Account protected</small></span></div>
+          <div class="profile-row"><span class="avatar" id="profile-avatar">P</span><span><strong id="profile-name">Pharmacy team</strong><small id="pharmacy-name">Operations</small></span><button class="profile-more" id="logout-button" type="button" title="Sign out" aria-label="Sign out">↗</button></div>
+        </div>
+      </aside>
+
+      <main class="main-area">
+        <header class="topbar">
+          <div class="mobile-brand"><span class="brand-mark">+</span><strong>Pharmacy</strong></div>
+          <div class="breadcrumb"><span>Workspace</span><span class="crumb-divider">/</span><strong id="breadcrumb-current">Overview</strong></div>
+          <div class="topbar-right">
+            <label class="search-box"><span>⌕</span><input id="global-search" type="search" placeholder="Search products…" aria-label="Search products" /><kbd>⌘ K</kbd></label>
+            <button class="icon-button" id="refresh-button" aria-label="Refresh data" title="Refresh data">↻</button>
+            <span class="today-label" id="today-label"></span>
+            <button class="button button-secondary account-logout" id="top-logout-button" type="button">Sign out</button>
+          </div>
+        </header>
+
+        <div class="page-content">
+          <section class="view active" id="view-overview">
+            <div class="page-heading">
+              <div><p class="eyebrow" id="welcome-label">PHARMACY OVERVIEW</p><h1>Your pharmacy, at a glance</h1><p class="page-subtitle">A clear view of today's sales and the stock that needs attention.</p></div>
+              <div class="heading-actions"><button class="button button-secondary" data-open-view="inventory">＋ Receive stock</button><button class="button button-primary" data-open-view="sales">＋ New sale</button></div>
+            </div>
+
+            <div class="metric-grid">
+              <article class="metric-card"><div class="metric-top"><span class="metric-label">Today's revenue</span><span class="metric-icon green">↗</span></div><strong class="metric-value" id="metric-revenue">—</strong><div class="metric-foot"><span class="metric-hint">From completed sales</span><span class="metric-period">TODAY</span></div></article>
+              <article class="metric-card"><div class="metric-top"><span class="metric-label">Gross profit</span><span class="metric-icon blue">◈</span></div><strong class="metric-value" id="metric-profit">—</strong><div class="metric-foot"><span class="metric-hint" id="metric-margin">After batch cost</span><span class="metric-period">TODAY</span></div></article>
+              <article class="metric-card"><div class="metric-top"><span class="metric-label">Sellable units</span><span class="metric-icon violet">▦</span></div><strong class="metric-value" id="metric-stock">—</strong><div class="metric-foot"><span class="metric-hint" id="metric-stock-value">Across all products</span><span class="metric-period">ON HAND</span></div></article>
+              <article class="metric-card"><div class="metric-top"><span class="metric-label">Near expiry</span><span class="metric-icon amber">◷</span></div><strong class="metric-value" id="metric-expiring">—</strong><div class="metric-foot"><span class="metric-hint">Units expiring in 30 days</span><span class="metric-period warning-period">REVIEW</span></div></article>
+            </div>
+
+            <div class="dashboard-grid">
+              <section class="panel chart-panel">
+                <div class="panel-heading"><div><h2>Top products</h2><p>Best sellers by units today</p></div><button class="text-button" data-open-view="sales">View sales <span>→</span></button></div>
+                <div id="top-products" class="top-products"><div class="loading-line"></div><div class="loading-line short"></div><div class="loading-line"></div></div>
+              </section>
+              <section class="panel expiry-panel">
+                <div class="panel-heading"><div><h2>Expiry watch</h2><p>Stock approaching its expiry date</p></div><span class="soft-badge amber-badge">NEXT 30 DAYS</span></div>
+                <div id="expiry-list" class="expiry-list"><div class="empty-placeholder">Loading inventory…</div></div>
+              </section>
+            </div>
+
+            <section class="panel table-panel">
+              <div class="panel-heading"><div><h2>Recent sales</h2><p>Your latest completed transactions</p></div><button class="text-button" data-open-view="sales">All sales <span>→</span></button></div>
+              <div class="table-wrap"><table><thead><tr><th>SALE</th><th>ITEMS</th><th>DATE &amp; TIME</th><th class="align-right">TOTAL</th><th>STATUS</th></tr></thead><tbody id="recent-sales"><tr><td colspan="5" class="table-empty">Loading recent sales…</td></tr></tbody></table></div>
+            </section>
+          </section>
+
+          <section class="view" id="view-chat">
+            <div class="page-heading">
+              <div><p class="eyebrow">PHARMACY AI ASSISTANT</p><h1>Ask a question</h1><p class="page-subtitle">Get clear, detailed answers for general questions and non-clinical pharmacy topics.</p></div>
+              <button class="button button-secondary" id="clear-chat" type="button">Clear conversation</button>
+            </div>
+            <section class="chat-layout" aria-label="AI chat">
+              <div class="chat-intro">
+                <span class="chat-mark" aria-hidden="true">✳</span>
+                <div><h2>What can I help you understand?</h2><p>Ask follow-up questions to explore a topic in more detail.</p></div>
+              </div>
+              <div class="chat-suggestions" aria-label="Suggested questions">
+                <button type="button" class="chat-suggestion">Explain the difference between generic and brand-name medicines</button>
+                <button type="button" class="chat-suggestion">What should a pharmacy check when receiving a delivery?</button>
+                <button type="button" class="chat-suggestion">Explain FEFO inventory management with an example</button>
+              </div>
+              <div class="chat-privacy" role="note">
+                <strong>Protect patient privacy.</strong> Do not enter names, contact details, prescription information, or other identifiable or confidential health information. This chat is sent to Google Gemini; on its free tier, Google may use prompts and responses to improve its products.
+                <span>This is a non-clinical assistant, not a patient-care tool. AI responses can be inaccurate and are not authoritative. For decisions about a person’s health or medication, check a verified source and consult a licensed pharmacist or clinician.</span>
+              </div>
+              <div id="chat-transcript" class="chat-transcript" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions"></div>
+              <div id="chat-status" class="chat-status" aria-live="polite"></div>
+              <form id="chat-form" class="chat-composer">
+                <label class="sr-only" for="chat-message">Your question</label>
+                <textarea id="chat-message" name="message" rows="3" maxlength="4000" placeholder="Ask anything…" required></textarea>
+                <div class="chat-composer-footer"><span>Enter to send · Shift+Enter for a new line</span><button id="chat-send" class="button button-primary" type="submit">Send <span aria-hidden="true">↑</span></button></div>
+              </form>
+            </section>
+          </section>
+
+          <section class="view" id="view-products">
+            <div class="page-heading"><div><p class="eyebrow">CATALOG</p><h1>Products</h1><p class="page-subtitle">Manage the medicines and products your pharmacy carries.</p></div><button class="button button-primary" data-scroll-to="product-form">＋ Add product</button></div>
+            <section class="panel form-panel" id="product-form"><div class="panel-heading"><div><h2>Add a product</h2><p>Prices are stored in EGP. Barcodes must be unique.</p></div></div><form id="create-product-form" class="form-grid"><label>Product name<input name="name" placeholder="e.g. Panadol Extra" required maxlength="200" /></label><label>Barcode <span class="optional">Optional</span><input name="barcode" placeholder="Scan or enter barcode" maxlength="80" /></label><label>Selling price (EGP)<input name="selling_price" type="number" min="0" step="0.01" placeholder="0.00" required /></label><div class="form-submit"><button class="button button-primary" type="submit">Save product</button></div></form></section>
+            <section class="panel table-panel"><div class="panel-heading"><div><h2>Product catalog</h2><p id="product-count">Products in your workspace</p></div><label class="table-search"><span>⌕</span><input id="product-filter" type="search" placeholder="Filter products" /></label></div><div class="table-wrap"><table><thead><tr><th>PRODUCT</th><th>BARCODE</th><th>SELLING PRICE</th><th>STATUS</th><th class="align-right">ACTION</th></tr></thead><tbody id="products-table"><tr><td colspan="5" class="table-empty">Loading products…</td></tr></tbody></table></div></section>
+          </section>
+
+          <section class="view" id="view-inventory">
+            <div class="page-heading"><div><p class="eyebrow">STOCK CONTROL</p><h1>Inventory</h1><p class="page-subtitle">Track stock by batch, expiry date, and purchase cost.</p></div><button class="button button-primary" data-scroll-to="opening-stock-form">＋ Add opening stock</button></div>
+            <section class="inventory-summary metric-grid compact-metrics"><article class="metric-card"><div class="metric-top"><span class="metric-label">Total units on hand</span><span class="metric-icon violet">▦</span></div><strong class="metric-value" id="inventory-on-hand">—</strong><div class="metric-foot"><span class="metric-hint">Across all batches</span></div></article><article class="metric-card"><div class="metric-top"><span class="metric-label">Inventory cost value</span><span class="metric-icon green">◈</span></div><strong class="metric-value" id="inventory-value">—</strong><div class="metric-foot"><span class="metric-hint">At recorded purchase cost</span></div></article><article class="metric-card"><div class="metric-top"><span class="metric-label">Expired units</span><span class="metric-icon amber">◷</span></div><strong class="metric-value" id="inventory-expired">—</strong><div class="metric-foot"><span class="metric-hint">Excluded from sellable stock</span></div></article></section>
+            <section class="panel form-panel" id="opening-stock-form"><div class="panel-heading"><div><h2>Record opening stock</h2><p>Use this for initial stock entry. Record supplier deliveries under Purchasing.</p></div></div><form id="create-batch-form" class="form-grid"><label>Product<select name="product_id" required class="product-options"><option value="">Choose a product</option></select></label><label>Batch number<input name="batch_number" required maxlength="100" placeholder="e.g. PAN-2401" /></label><label>Quantity<input name="quantity" type="number" min="1" step="1" required placeholder="0" /></label><label>Unit cost (EGP)<input name="unit_cost" type="number" min="0" step="0.01" required placeholder="0.00" /></label><label>Expiry date<input name="expiry_date" type="date" required /></label><div class="form-submit"><button class="button button-primary" type="submit">Add batch</button></div></form></section>
+            <section class="panel table-panel"><div class="panel-heading"><div><h2>Inventory batches</h2><p>Sorted by earliest expiry</p></div><label class="table-search"><span>⌕</span><input id="batch-filter" type="search" placeholder="Filter batches" /></label></div><div class="table-wrap"><table><thead><tr><th>PRODUCT</th><th>BATCH</th><th>QUANTITY</th><th>UNIT COST</th><th>EXPIRY</th><th>STOCK STATUS</th></tr></thead><tbody id="batches-table"><tr><td colspan="6" class="table-empty">Loading inventory…</td></tr></tbody></table></div></section>
+          </section>
+
+          <section class="view" id="view-sales">
+            <div class="page-heading"><div><p class="eyebrow">CHECKOUT</p><h1>Sales</h1><p class="page-subtitle">Create a sale. The system prices it and allocates the earliest-expiring stock first.</p></div></div>
+            <section class="panel form-panel"><div class="panel-heading"><div><h2>New sale</h2><p>Only active products with unexpired stock can be sold.</p></div><span class="soft-badge green-badge">FEFO ENABLED</span></div><form id="create-sale-form"><div id="sale-lines" class="dynamic-lines"></div><div class="form-actions"><button type="button" class="button button-secondary button-small" id="add-sale-line">＋ Add another product</button><button class="button button-primary" type="submit">Complete sale <span>→</span></button></div></form></section>
+            <section class="panel table-panel"><div class="panel-heading"><div><h2>Sales history</h2><p>Completed transactions and recorded batch allocations</p></div></div><div class="table-wrap"><table><thead><tr><th>SALE</th><th>ITEMS</th><th>DATE &amp; TIME</th><th class="align-right">TOTAL</th><th>ALLOCATION</th></tr></thead><tbody id="sales-table"><tr><td colspan="5" class="table-empty">Loading sales…</td></tr></tbody></table></div></section>
+          </section>
+
+          <section class="view" id="view-purchases">
+            <div class="page-heading"><div><p class="eyebrow">SUPPLY CHAIN</p><h1>Purchasing</h1><p class="page-subtitle">Create supplier orders and turn deliveries into traceable inventory batches.</p></div></div>
+            <section class="panel form-panel"><div class="panel-heading"><div><h2>New purchase order</h2><p>Order quantities and cost are saved as a purchase record.</p></div></div><form id="create-purchase-form"><div class="form-grid purchase-head-grid"><label>Supplier<select name="supplier_id" required id="purchase-supplier"><option value="">Choose a supplier</option></select></label></div><div id="purchase-lines" class="dynamic-lines"></div><div class="form-actions"><button type="button" class="button button-secondary button-small" id="add-purchase-line">＋ Add another product</button><button class="button button-primary" type="submit">Create purchase order <span>→</span></button></div></form></section>
+            <section class="panel table-panel"><div class="panel-heading"><div><h2>Purchase orders</h2><p>Record each delivery against its original order line.</p></div><label class="table-search"><span>⌕</span><select id="purchase-status-filter"><option value="">All statuses</option><option value="ordered">Ordered</option><option value="partially_received">Partially received</option><option value="received">Received</option><option value="cancelled">Cancelled</option></select></label></div><div id="purchases-list" class="purchase-list"><div class="table-empty">Loading purchase orders…</div></div></section>
+          </section>
+
+          <section class="view" id="view-suppliers">
+            <div class="page-heading"><div><p class="eyebrow">SUPPLY CHAIN</p><h1>Suppliers</h1><p class="page-subtitle">Keep supplier contacts organized for purchasing.</p></div></div>
+            <section class="panel form-panel"><div class="panel-heading"><div><h2>Add a supplier</h2><p>Contact details are optional and can be updated later.</p></div></div><form id="create-supplier-form" class="form-grid"><label>Supplier name<input name="name" required maxlength="200" placeholder="e.g. Nile Medical Supply" /></label><label>Contact person<input name="contact_person" maxlength="200" placeholder="Contact name" /></label><label>Phone<input name="phone" maxlength="40" placeholder="+20 …" /></label><label>Email<input name="email" type="email" maxlength="254" placeholder="orders@example.com" /></label><div class="form-submit"><button class="button button-primary" type="submit">Save supplier</button></div></form></section>
+            <section class="panel table-panel"><div class="panel-heading"><div><h2>Supplier directory</h2><p id="supplier-count">Active suppliers</p></div></div><div class="table-wrap"><table><thead><tr><th>SUPPLIER</th><th>CONTACT</th><th>PHONE</th><th>EMAIL</th><th>STATUS</th></tr></thead><tbody id="suppliers-table"><tr><td colspan="5" class="table-empty">Loading suppliers…</td></tr></tbody></table></div></section>
+          </section>
+        </div>
+      </main>
+    </div>
+    </div>
+
+    <dialog id="receive-dialog" class="receive-dialog">
+      <form id="receive-form" method="dialog">
+        <div class="dialog-heading"><div><p class="eyebrow">PURCHASE RECEIPT</p><h2>Receive a batch</h2><p id="receive-line-description" class="page-subtitle"></p></div><button type="button" class="dialog-close" id="close-receive">×</button></div>
+        <input type="hidden" name="purchase_id" /><input type="hidden" name="purchase_item_id" />
+        <label>Batch number<input name="batch_number" required maxlength="100" placeholder="Supplier batch number" /></label>
+        <div class="form-grid dialog-grid"><label>Received quantity<input name="quantity" type="number" min="1" step="1" required /></label><label>Expiry date<input name="expiry_date" type="date" required /></label></div>
+        <div class="form-actions"><button type="button" class="button button-secondary" id="cancel-receive">Cancel</button><button type="submit" class="button button-primary">Confirm receipt</button></div>
+      </form>
+    </dialog>
+
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
+  </body>
+</html>
