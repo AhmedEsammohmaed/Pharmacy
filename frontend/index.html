@@ -50,6 +50,7 @@
         <nav class="primary-nav" aria-label="Main navigation">
           <button class="nav-link active" data-view="overview"><span class="nav-icon">◫</span>Overview</button>
           <button class="nav-link" data-view="chat" aria-label="AI chat"><span class="nav-icon">✳</span>AI chat</button>
+          <button class="nav-link" data-view="automation"><span class="nav-icon">⟳</span>Automation</button>
           <button class="nav-link" data-view="inventory"><span class="nav-icon">▦</span>Inventory</button>
           <button class="nav-link" data-view="sales"><span class="nav-icon">↗</span>Sales</button>
           <button class="nav-link" data-view="purchases"><span class="nav-icon">⇣</span>Purchasing</button>
@@ -117,13 +118,14 @@
                 <div><h2>What can I help you understand?</h2><p>Ask follow-up questions to explore a topic in more detail.</p></div>
               </div>
               <div class="chat-suggestions" aria-label="Suggested questions">
-                <button type="button" class="chat-suggestion">Explain the difference between generic and brand-name medicines</button>
-                <button type="button" class="chat-suggestion">What should a pharmacy check when receiving a delivery?</button>
-                <button type="button" class="chat-suggestion">Explain FEFO inventory management with an example</button>
+                <button type="button" class="chat-suggestion">Which products are low in stock?</button>
+                <button type="button" class="chat-suggestion">Which batches expire in the next 30 days?</button>
+                <button type="button" class="chat-suggestion">Summarize my sales for the last 7 days</button>
               </div>
               <div class="chat-privacy" role="note">
-                <strong>Protect patient privacy.</strong> Do not enter names, contact details, prescription information, or other identifiable or confidential health information. This chat is sent to Google Gemini; on its free tier, Google may use prompts and responses to improve its products.
-                <span>This is a non-clinical assistant, not a patient-care tool. AI responses can be inaccurate and are not authoritative. For decisions about a person’s health or medication, check a verified source and consult a licensed pharmacist or clinician.</span>
+                <strong>Protect patient privacy.</strong> Do not enter names, contact details, prescription information, or other identifiable or confidential health information.
+                <span>Depending on the server configuration, your question, recent chat history, and pharmacy account context go to Google Gemini or the configured n8n instance. Google may use prompts and responses from its free API tier to improve products; in n8n mode, its connected AI provider may also receive the data. n8n receives a short-lived, read-only token for this pharmacy's product, stock, expiry, and sales tools.</span>
+                <span>This assistant is not a patient-care tool and cannot make changes to your records. AI responses can be inaccurate and are not authoritative. For decisions about a person's health or medication, check a verified source and consult a licensed pharmacist or clinician.</span>
               </div>
               <div id="chat-transcript" class="chat-transcript" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions"></div>
               <div id="chat-status" class="chat-status" aria-live="polite"></div>
@@ -132,6 +134,30 @@
                 <textarea id="chat-message" name="message" rows="3" maxlength="4000" placeholder="Ask anything…" required></textarea>
                 <div class="chat-composer-footer"><span>Enter to send · Shift+Enter for a new line</span><button id="chat-send" class="button button-primary" type="submit">Send <span aria-hidden="true">↑</span></button></div>
               </form>
+            </section>
+          </section>
+
+          <section class="view" id="view-automation">
+            <div class="page-heading">
+              <div><p class="eyebrow">INVENTORY MONITORING</p><h1>Automation</h1><p class="page-subtitle">Get in-app alerts when stock is low or batches need an expiry review.</p></div>
+              <button class="button button-primary" id="run-automation" type="button">Run checks now <span aria-hidden="true">↻</span></button>
+            </div>
+            <section class="panel automation-settings-panel">
+              <div class="panel-heading"><div><h2>Daily inventory checks</h2><p>Runs automatically while the pharmacy service is online.</p></div><span class="soft-badge green-badge">IN-APP ALERTS ONLY</span></div>
+              <form id="automation-form" class="automation-form">
+                <label class="automation-toggle"><input name="enabled" type="checkbox" checked /><span><strong>Enable daily monitoring</strong><small>Finds active products below your stock threshold, batches nearing expiry, and expired stock.</small></span></label>
+                <div class="automation-fields">
+                  <label>Low-stock threshold<input name="low_stock_threshold" type="number" min="0" max="10000" step="1" required /><small>Alert when sellable units are at or below this amount.</small></label>
+                  <label>Expiry notice window<input name="expiry_notice_days" type="number" min="1" max="365" step="1" required /><small>Days ahead to flag batches for review.</small></label>
+                  <button class="button button-secondary" type="submit">Save automation settings</button>
+                </div>
+              </form>
+              <p class="automation-safety-note">These automations only create in-app alerts. They do not place orders, change stock, or contact suppliers.</p>
+              <div id="automation-feedback" class="automation-feedback" aria-live="polite"></div>
+            </section>
+            <section class="panel automation-alert-panel">
+              <div class="panel-heading"><div><h2>Active alerts</h2><p>Alerts clear automatically after the underlying stock issue is resolved.</p></div><button class="text-button" id="refresh-automation" type="button">Refresh</button></div>
+              <div id="automation-alerts" class="automation-alerts"><div class="empty-placeholder">Loading automation alerts…</div></div>
             </section>
           </section>
 

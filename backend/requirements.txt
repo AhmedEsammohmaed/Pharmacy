@@ -18,3 +18,4 @@ python-dotenv==1.2.4
 tzdata==2026.5
 psycopg[binary]>=3.2,<4
 google-genai>=2.26,<3
+httpx>=0.28.1,<1

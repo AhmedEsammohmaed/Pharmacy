@@ -75,6 +75,47 @@ class UserSession(Base):
     user: Mapped[User] = relationship()
 
 
+class AutomationRule(TenantScoped, Base):
+    __tablename__ = "automation_rules"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", name="uq_automation_rules_tenant"),
+        CheckConstraint("low_stock_threshold >= 0", name="ck_automation_low_stock_threshold"),
+        CheckConstraint("expiry_notice_days BETWEEN 1 AND 365", name="ck_automation_expiry_notice_days"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    low_stock_threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    expiry_notice_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    )
+
+
+class AutomationAlert(TenantScoped, Base):
+    __tablename__ = "automation_alerts"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "fingerprint", name="uq_automation_alert_tenant_fingerprint"),
+        CheckConstraint(
+            "kind IN ('low_stock', 'expiring_batch', 'expired_batch')",
+            name="ck_automation_alert_kind",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String(255), nullable=False)
+    kind: Mapped[str] = mapped_column(String(24), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    message: Mapped[str] = mapped_column(String(500), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    )
+
+
 class Product(TenantScoped, Base):
     __tablename__ = "products"
     __table_args__ = (

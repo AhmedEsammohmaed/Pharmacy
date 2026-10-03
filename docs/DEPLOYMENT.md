@@ -9,7 +9,7 @@ The hosted version uses Render's native Python web service and managed PostgreSQ
 3. Choose **New → Blueprint** and select this repository. Render reads [`../render.yaml`](../render.yaml).
 4. Review the web service and PostgreSQL compute plans before confirming. The configured plans are paid; check [Render's current pricing](https://render.com/pricing). Render's free PostgreSQL plan does not provide recovery or managed logical backups. See [Render's Postgres recovery and backups guide](https://render.com/docs/postgresql-backups).
 5. Create the Blueprint resources and wait for the `/health` check to pass.
-6. In the Render web service's **Environment** settings, add `GEMINI_API_KEY` using a key from [Google AI Studio](https://aistudio.google.com/app/apikey), then save and redeploy. Keep this key secret. Without it, the rest of the app works but AI chat stays disabled.
+6. Choose a chat provider. For Gemini, add `CHAT_PROVIDER=gemini` and `GEMINI_API_KEY` using a key from [Google AI Studio](https://aistudio.google.com/app/apikey). For n8n, add `CHAT_PROVIDER=n8n`, `N8N_CHAT_WEBHOOK_URL`, and `N8N_CHAT_WEBHOOK_TOKEN`. Save and redeploy after changing private environment variables. See the [n8n integration guide](N8N_INTEGRATION.md).
 7. Open the service's `onrender.com` URL. Create the first pharmacy account, then verify it by signing out and back in.
 8. Add your custom domain in the Render service settings if you have one.
 
@@ -20,14 +20,14 @@ The Blueprint sets:
 - `ENVIRONMENT=production`, which refuses SQLite and insecure cookies.
 - `COOKIE_SECURE=true`, with HttpOnly and SameSite=Lax session cookies.
 - `DATABASE_URL` from the private PostgreSQL connection string.
-- `GEMINI_API_KEY` is a private Render environment secret for server-side chat calls. It is not exposed to the browser or stored in PostgreSQL.
+- Provider credentials are private Render environment secrets for server-side chat calls. They are not exposed to the browser or stored in PostgreSQL.
 - `CHAT_MODEL_ID` and `CHAT_MAX_OUTPUT_TOKENS` configure the chat provider/model and answer length.
 - `FORWARDED_ALLOW_IPS=*` so Uvicorn can honor the hosting proxy's HTTPS and client headers.
 - Frankfurt for both app and database to keep the deployment region consistent.
 
-The `/health` endpoint runs `SELECT 1` against the configured database. Signup and login are served by the app; all pharmacy operations require an authenticated account.
+The `/health` endpoint runs `SELECT 1` against the configured database. Signup and login are served by the app; all pharmacy operations require an authenticated account. Gemini uses tenant-scoped read-only tools for product, inventory, expiry, and sales queries. When chat is routed through n8n, its AI Agent can call the same tools with a signed, short-lived token limited to one pharmacy. Daily inventory monitoring runs in the web service process and stores in-app alerts in PostgreSQL; it does not create orders or edit business stock.
 
-AI chat sends each question and its recent conversation context to Google Gemini. The chat history is held in the browser session and is not written to the pharmacy database. Google says it may use prompts and responses from unpaid API usage to improve products, so do not enter patient-identifying, sensitive, or confidential information. Free usage is quota-limited and availability can change. Google's current terms prohibit using Gemini API in clinical practice or to provide medical advice, and require paid service for API clients offered to users in the EEA, Switzerland, or UK. Keep the chat non-clinical and check current terms for every country where the public app is offered.
+In Gemini mode, chat messages, recent context, and relevant pharmacy tool results go to Google Gemini. In n8n mode, messages and history go to the configured n8n instance; any connected model provider may process them, and pharmacy tool results return to n8n. Do not enter patient-identifying or confidential information. Keep chat non-clinical and check current provider terms for every country where the public app is offered.
 
 ## Runtime and data
 

@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from time import monotonic
@@ -10,24 +12,47 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from backend import models  # noqa: F401 - registers mapped models with Base.metadata.
+from backend.automations import router as automation_router
 from backend.auth import get_current_user, router as auth_router
 from backend.analytics import router as analytics_router
 from backend.chat import router as chat_router
 from backend.config import get_settings
 from backend.database import engine, initialize_database
 from backend.inventory import router as inventory_router
+from backend.n8n_tools import router as n8n_tools_router
 from backend.products import router as products_router
 from backend.purchases import router as purchases_router
 from backend.sales import router as sales_router
 from backend.suppliers import router as suppliers_router
+from backend.services.automation_service import run_daily_automations
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "frontend"
+logger = logging.getLogger(__name__)
+
+
+async def _daily_automation_loop() -> None:
+    while True:
+        try:
+            await asyncio.to_thread(run_daily_automations)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Scheduled pharmacy automation run failed.")
+        await asyncio.sleep(24 * 60 * 60)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     initialize_database()
-    yield
+    automation_task = asyncio.create_task(_daily_automation_loop())
+    try:
+        yield
+    finally:
+        automation_task.cancel()
+        try:
+            await automation_task
+        except asyncio.CancelledError:
+            pass
 
 
 settings = get_settings()
@@ -51,6 +76,9 @@ app.include_router(suppliers_router, **protected_api)
 app.include_router(purchases_router, **protected_api)
 app.include_router(analytics_router, **protected_api)
 app.include_router(chat_router, **protected_api)
+app.include_router(automation_router, **protected_api)
+# This endpoint verifies a short-lived signed pharmacy capability instead of a browser session.
+app.include_router(n8n_tools_router, prefix="/api/v1")
 _auth_requests: dict[str, list[float]] = {}
 _auth_rate_limits = {
     "/auth/login": (10, 15 * 60),

@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -16,8 +17,11 @@ class Settings(BaseSettings):
     llm_max_new_tokens: int = Field(default=160, ge=1, le=1024)
     llm_context_window: int = Field(default=2048, ge=64, le=32768)
     gemini_api_key: SecretStr | None = None
+    chat_provider: Literal["gemini", "n8n"] = "gemini"
     chat_model_id: str = "gemini-3.8-flash"
     chat_max_output_tokens: int = Field(default=1800, ge=256, le=8192)
+    n8n_chat_webhook_url: str | None = None
+    n8n_chat_webhook_token: SecretStr | None = None
 
     @field_validator("business_timezone")
     @classmethod
@@ -26,6 +30,19 @@ class Settings(BaseSettings):
             ZoneInfo(value)
         except ZoneInfoNotFoundError as exc:
             raise ValueError(f"Unknown IANA timezone: {value}") from exc
+        return value
+
+    @field_validator("n8n_chat_webhook_url")
+    @classmethod
+    def validate_n8n_chat_webhook_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip()
+        parsed = urlsplit(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("N8N_CHAT_WEBHOOK_URL must be an HTTP or HTTPS URL.")
+        if parsed.username or parsed.password:
+            raise ValueError("Put webhook authentication in N8N_CHAT_WEBHOOK_TOKEN, not the URL.")
         return value
 
     @model_validator(mode="after")

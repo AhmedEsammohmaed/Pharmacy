@@ -4,21 +4,23 @@ from time import monotonic
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
+from backend.agent.service import PharmacyAgent
 from backend.auth import get_current_user
 from backend.chat_schemas import ChatRequest, ChatResponse
+from backend.database import get_db
 from backend.llm.gemini_service import (
     ChatNotConfiguredError,
     ChatProviderError,
     ChatRateLimitError,
-    GeminiChatService,
 )
 from backend.models import User
 
 router = APIRouter(prefix="/chat", tags=["AI chat"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
-_service = GeminiChatService()
+_service = PharmacyAgent()
 _RATE_LIMIT = 10
 _RATE_WINDOW_SECONDS = 60
 _REQUESTS_BY_USER: dict[int, deque[float]] = defaultdict(deque)
@@ -42,10 +44,14 @@ def _check_rate_limit(user_id: int) -> None:
 
 
 @router.post("/messages", response_model=ChatResponse)
-def send_chat_message(payload: ChatRequest, user: CurrentUser) -> ChatResponse:
+def send_chat_message(
+    payload: ChatRequest,
+    user: CurrentUser,
+    db: Annotated[Session, Depends(get_db)],
+) -> ChatResponse:
     _check_rate_limit(user.id)
     try:
-        answer = _service.reply(payload.message, payload.history)
+        answer = _service.reply(payload.message, payload.history, db, user.pharmacy_id)
     except ChatNotConfiguredError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

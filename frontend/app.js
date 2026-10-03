@@ -9,6 +9,8 @@ const state = {
   analytics: null,
   inventory: null,
   chatHistory: [],
+  automationSettings: null,
+  automationAlerts: [],
   view: "overview",
 };
 let authGeneration = 0;
@@ -100,6 +102,8 @@ function setAccount(account) {
     state.analytics = null;
     state.inventory = null;
     state.chatHistory = [];
+    state.automationSettings = null;
+    state.automationAlerts = [];
     renderChat();
     setChatStatus("");
     document.querySelector("#chat-send").disabled = false;
@@ -200,6 +204,7 @@ function showView(name) {
   if (name === "sales" && !document.querySelector("#sale-lines .dynamic-line")) addDynamicLine("sale");
   if (name === "purchases" && !document.querySelector("#purchase-lines .dynamic-line")) addDynamicLine("purchase");
   if (name === "chat") document.querySelector("#chat-message").focus({ preventScroll: true });
+  if (name === "automation") loadAutomation();
 }
 
 function setChatStatus(message, isError = false) {
@@ -270,17 +275,120 @@ async function submitChatMessage(message) {
   }
 }
 
+function setAutomationFeedback(message, isError = false) {
+  const feedback = document.querySelector("#automation-feedback");
+  feedback.textContent = message;
+  feedback.classList.toggle("error", isError);
+}
+
+function renderAutomationAlerts() {
+  const root = document.querySelector("#automation-alerts");
+  root.replaceChildren();
+  if (!state.automationAlerts.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-placeholder";
+    empty.textContent = "No active alerts. Your inventory checks are clear.";
+    root.append(empty);
+    return;
+  }
+  for (const alert of state.automationAlerts) {
+    const article = document.createElement("article");
+    article.className = `automation-alert ${alert.kind}`;
+    const icon = document.createElement("span");
+    icon.className = "automation-alert-icon";
+    icon.textContent = alert.kind === "low_stock" ? "▦" : alert.kind === "expired_batch" ? "!" : "◷";
+    icon.setAttribute("aria-hidden", "true");
+    const content = document.createElement("div");
+    const title = document.createElement("p");
+    title.className = "automation-alert-title";
+    title.textContent = alert.title;
+    const message = document.createElement("p");
+    message.className = "automation-alert-message";
+    message.textContent = alert.message;
+    content.append(title, message);
+    const seen = document.createElement("time");
+    seen.className = "automation-alert-time";
+    seen.dateTime = alert.last_seen_at;
+    seen.textContent = `Checked ${dateTime(alert.last_seen_at)}`;
+    article.append(icon, content, seen);
+    root.append(article);
+  }
+}
+
+async function loadAutomation() {
+  if (!state.account) return;
+  const generation = authGeneration;
+  try {
+    const [settings, alerts] = await Promise.all([
+      api("/automation/settings"),
+      api("/automation/alerts"),
+    ]);
+    if (generation !== authGeneration || !state.account) return;
+    state.automationSettings = settings;
+    state.automationAlerts = alerts;
+    const form = document.querySelector("#automation-form");
+    form.elements.enabled.checked = settings.enabled;
+    form.elements.low_stock_threshold.value = settings.low_stock_threshold;
+    form.elements.expiry_notice_days.value = settings.expiry_notice_days;
+    renderAutomationAlerts();
+    setAutomationFeedback("Daily checks run automatically while the service is online.");
+  } catch (error) {
+    if (generation === authGeneration) setAutomationFeedback(error.message, true);
+  }
+}
+
+async function saveAutomationSettings(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submit = form.querySelector("button[type=submit]");
+  const payload = {
+    enabled: form.elements.enabled.checked,
+    low_stock_threshold: Number(form.elements.low_stock_threshold.value),
+    expiry_notice_days: Number(form.elements.expiry_notice_days.value),
+  };
+  submit.disabled = true;
+  try {
+    state.automationSettings = await api("/automation/settings", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+    setAutomationFeedback("Automation settings saved.");
+    await loadAutomation();
+  } catch (error) {
+    setAutomationFeedback(error.message, true);
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function runAutomationNow() {
+  const button = document.querySelector("#run-automation");
+  button.disabled = true;
+  setAutomationFeedback("Checking products and inventory…");
+  try {
+    const result = await api("/automation/run", { method: "POST", body: "{}" });
+    await loadAutomation();
+    setAutomationFeedback(
+      `Check complete for ${result.as_of_date}: ${result.active_alerts} active alert(s), ${result.new_alerts} new.`,
+    );
+  } catch (error) {
+    setAutomationFeedback(error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function loadData(showConnectionError = false) {
   const generation = authGeneration;
   const requests = [
-    ["products", `${API}/products/?limit=500`],
-    ["suppliers", `${API}/suppliers/?limit=500`],
-    ["batches", `${API}/inventory/batches/?limit=500`],
-    ["sales", `${API}/sales/?limit=100`],
-    ["purchases", `${API}/purchases/?limit=100`],
-    ["analytics", `${API}/analytics/sales/summary`],
-    ["inventory", `${API}/analytics/inventory?expiry_window_days=30`],
-    ["topProducts", `${API}/analytics/sales/top-products?limit=5`],
+    ["products", "/products/?limit=500"],
+    ["suppliers", "/suppliers/?limit=500"],
+    ["batches", "/inventory/batches/?limit=500"],
+    ["sales", "/sales/?limit=100"],
+    ["purchases", "/purchases/?limit=100"],
+    ["analytics", "/analytics/sales/summary"],
+    ["inventory", "/analytics/inventory?expiry_window_days=30"],
+    ["topProducts", "/analytics/sales/top-products?limit=5"],
   ];
   const settled = await Promise.allSettled(requests.map(([, path]) => api(path)));
   if (generation !== authGeneration || !state.account) return false;
@@ -515,6 +623,9 @@ document.querySelector("#clear-chat").addEventListener("click", () => {
   setChatStatus("Conversation cleared.");
   document.querySelector("#chat-message").focus();
 });
+document.querySelector("#automation-form").addEventListener("submit", saveAutomationSettings);
+document.querySelector("#run-automation").addEventListener("click", runAutomationNow);
+document.querySelector("#refresh-automation").addEventListener("click", loadAutomation);
 
 document.querySelector("#create-product-form").addEventListener("submit", async (event) => {
   event.preventDefault();
