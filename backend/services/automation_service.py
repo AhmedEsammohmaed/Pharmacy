@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import timedelta
-from threading import Lock
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -20,11 +19,12 @@ from backend.models import (
     utc_now,
 )
 from backend.time_utils import business_today
+from backend.runtime import make_lock
 
 logger = logging.getLogger(__name__)
 DEFAULT_LOW_STOCK_THRESHOLD = 10
 DEFAULT_EXPIRY_NOTICE_DAYS = 30
-_RUN_LOCK = Lock()
+_RUN_LOCK = make_lock()
 
 
 def get_settings(db: Session, tenant_id: int) -> dict[str, int | bool]:

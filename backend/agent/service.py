@@ -41,3 +41,22 @@ class PharmacyAgent:
             tool_declarations=PHARMACY_TOOL_DECLARATIONS,
             tool_executor=tools.execute,
         )
+
+    async def reply_cloudflare(
+        self,
+        message: str,
+        history: list[ChatHistoryMessage],
+        db: Session,
+        tenant_id: int,
+    ) -> str:
+        """Use Cloudflare's asynchronous fetch API without changing local providers."""
+        from backend.llm.cloudflare_service import CloudflareChatService
+
+        tools = PharmacyReadOnlyTools(db, tenant_id)
+        return await CloudflareChatService(self._settings).reply(
+            message,
+            history,
+            tenant_id,
+            tool_declarations=PHARMACY_TOOL_DECLARATIONS,
+            tool_executor=tools.execute,
+        )

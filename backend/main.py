@@ -6,8 +6,8 @@ from time import monotonic
 from typing import AsyncIterator
 from urllib.parse import urlsplit
 
-from fastapi import Depends, FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
@@ -43,6 +43,12 @@ async def _daily_automation_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    if settings.cloudflare_worker:
+        # Python Workers execute the ASGI lifespan around individual fetches.
+        # Schema setup is a one-time deployment step; Cron handles automation.
+        yield
+        return
+
     initialize_database()
     automation_task = asyncio.create_task(_daily_automation_loop())
     try:
@@ -66,7 +72,8 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+if not settings.cloudflare_worker:
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(auth_router)
 protected_api = {"prefix": "/api/v1", "dependencies": [Depends(get_current_user)]}
 app.include_router(products_router, **protected_api)
@@ -149,9 +156,40 @@ async def browser_security(request, call_next):
     return response
 
 
-@app.get("/", include_in_schema=False)
-def pharmacy_workspace() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+if settings.cloudflare_worker:
+
+    async def _worker_asset(path: str, request: Request) -> Response:
+        from urllib.parse import quote
+
+        env = request.scope.get("env")
+        assets = getattr(env, "ASSETS", None) if env is not None else None
+        if assets is None:
+            return JSONResponse(status_code=503, content={"detail": "Static assets are not configured."})
+
+        if path.startswith("static/"):
+            path = path[len("static/") :]
+        if not path:
+            path = "index.html"
+        if path.startswith(("api/", "auth/")):
+            return JSONResponse(status_code=404, content={"detail": "Not found."})
+
+        asset_url = f"https://assets.local/{quote(path, safe='/@-._~')}"
+        result = await assets.fetch(asset_url)
+        return Response(
+            content=await result.bytes(),
+            status_code=result.status,
+            headers=result.headers,
+        )
+
+    @app.get("/", include_in_schema=False)
+    async def pharmacy_workspace(request: Request) -> Response:
+        return await _worker_asset("index.html", request)
+
+else:
+
+    @app.get("/", include_in_schema=False)
+    def pharmacy_workspace() -> FileResponse:
+        return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/health", tags=["Health"])
@@ -159,3 +197,10 @@ def health() -> dict[str, str]:
     with engine.connect() as connection:
         connection.execute(text("SELECT 1"))
     return {"status": "ok"}
+
+
+if settings.cloudflare_worker:
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def cloudflare_static_asset(path: str, request: Request) -> Response:
+        return await _worker_asset(path, request)

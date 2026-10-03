@@ -5,8 +5,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-import httpx
-
 from backend.chat_schemas import ChatHistoryMessage
 from backend.config import Settings, get_settings
 from backend.llm.gemini_service import ChatNotConfiguredError, ChatProviderError
@@ -40,6 +38,13 @@ class N8NChatService:
             "pharmacy_id": tenant_id,
             "tool_access_token": issue_tool_access_token(tenant_id, secret),
         }
+        try:
+            import httpx
+        except ImportError as exc:
+            raise ChatProviderError(
+                "The n8n workflow could not answer right now. Check its webhook and try again."
+            ) from exc
+
         try:
             response = httpx.post(
                 url,

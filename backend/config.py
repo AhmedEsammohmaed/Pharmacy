@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     business_timezone: str = "Africa/Cairo"
     cookie_secure: bool = False
     environment: Literal["development", "production"] = "development"
+    cloudflare_worker: bool = False
     llm_model_id: str = "BioMistral/BioMistral-7B"
     llm_max_new_tokens: int = Field(default=160, ge=1, le=1024)
     llm_context_window: int = Field(default=2048, ge=64, le=32768)

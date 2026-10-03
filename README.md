@@ -43,9 +43,11 @@ The operations app does not load BioMistral at startup. To run the optional loca
 
 ## Publish the app
 
-The repository includes a Render Blueprint in [`render.yaml`](render.yaml) that uses Render's native Python runtime and managed PostgreSQL in Frankfurt. It uses HTTPS-only session cookies and checks database connectivity for health. The configured database and web service use paid plans; review Render's current pricing before provisioning. For a step-by-step release guide, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+The repository includes a Render Blueprint in [`render.yaml`](render.yaml) for a temporary public preview using a free Python web service and the project's Neon PostgreSQL database. Render supplies a public `onrender.com` link; the free service sleeps after idle time and may take about a minute to wake. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for deployment steps and limitations.
 
-The app is not published yet. The Git checkout currently has no remote repository connected, so connect it to a GitHub repository and deploy the Blueprint from a Render account to receive a public URL. Do not point a public deployment at the local SQLite file.
+For direct Cloudflare hosting, the repository also includes a Python Workers configuration using Workers Static Assets, Hyperdrive with external PostgreSQL, and a Cron Trigger. See [`docs/DEPLOYMENT_CLOUDFLARE.md`](docs/DEPLOYMENT_CLOUDFLARE.md) before deploying; the Hyperdrive ID and account secrets must be configured in your Cloudflare account.
+
+The Git checkout is connected to GitHub. To publish, create the Render Blueprint and enter the private Neon `DATABASE_URL` in Render. Do not point a public deployment at the local SQLite file.
 
 ## Project contents
 
@@ -56,7 +58,7 @@ The app is not published yet. The Git checkout currently has no remote repositor
 
 ## Account and data notes
 
-- Passwords are stored as scrypt hashes; the browser receives a 14-day HttpOnly session cookie.
+- Local passwords use scrypt hashes; Cloudflare-created accounts use PBKDF2-SHA256. The browser receives a 14-day HttpOnly session cookie.
 - Login and signup are rate-limited by client address to slow automated account attempts.
 - Each business table carries a pharmacy account ID. ORM reads and writes are tenant-filtered, and newly written rows inherit the signed-in pharmacy.
 - Public production mode refuses SQLite and insecure session cookies.

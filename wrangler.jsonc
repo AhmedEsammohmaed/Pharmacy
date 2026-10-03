@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pharmacy-operations",
+  "main": "backend/cloudflare_worker.py",
+  "compatibility_date": "2026-10-03",
+  "compatibility_flags": ["python_workers"],
+  "assets": {
+    "directory": "./frontend",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "REPLACE_WITH_HYPERDRIVE_CONFIG_ID"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  },
+  "vars": {
+    "APP_NAME": "Pharmacy Operations Workspace",
+    "ENVIRONMENT": "production",
+    "COOKIE_SECURE": "true",
+    "BUSINESS_TIMEZONE": "Africa/Cairo",
+    "CHAT_PROVIDER": "gemini",
+    "CHAT_MODEL_ID": "gemini-3.8-flash",
+    "CHAT_MAX_OUTPUT_TOKENS": "1800"
+  },
+  "limits": {
+    "cpu_ms": 30000
+  },
+  "observability": {
+    "enabled": true
+  }
+}

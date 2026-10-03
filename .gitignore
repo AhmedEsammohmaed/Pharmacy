@@ -2,6 +2,8 @@
 __pycache__/
 *.pyc
 .env
+.dev.vars
+.dev.vars.*
 .pytest_cache/
 .vscode/
 node_modules/

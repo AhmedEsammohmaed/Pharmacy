@@ -2,6 +2,7 @@ from collections.abc import Generator
 
 from sqlalchemy import create_engine, event, inspect
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker, with_loader_criteria
+from sqlalchemy.pool import NullPool
 
 from backend.config import get_settings
 
@@ -21,7 +22,11 @@ connect_args = (
     if database_url.startswith("sqlite")
     else {}
 )
-engine = create_engine(database_url, connect_args=connect_args, pool_pre_ping=True)
+engine_options = {"connect_args": connect_args, "pool_pre_ping": True}
+if settings.cloudflare_worker:
+    # Hyperdrive owns connection pooling; avoid retaining per-isolate PG sockets.
+    engine_options["poolclass"] = NullPool
+engine = create_engine(database_url, **engine_options)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 if database_url.startswith("sqlite"):

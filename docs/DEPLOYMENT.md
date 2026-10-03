@@ -1,17 +1,15 @@
-# Publish Pharmacy Operations
+# Share Pharmacy Operations temporarily
 
-The hosted version uses Render's native Python web service and managed PostgreSQL. The app and database are configured in Frankfurt. Render supplies the HTTPS endpoint, while PostgreSQL keeps account records between app restarts. The Blueprint does not use Docker.
+This setup publishes the complete FastAPI app as a free Render web service and uses the Neon PostgreSQL database configured for this project. Render supplies a public HTTPS `onrender.com` link. The Blueprint does not use Docker and does not create a paid Render database.
 
 ## Before deployment
 
-1. Put this project in a GitHub repository that you control. Keep `.env`, `pharmacy.db`, and credentials out of Git.
-2. Open Render and connect that GitHub repository.
-3. Choose **New → Blueprint** and select this repository. Render reads [`../render.yaml`](../render.yaml).
-4. Review the web service and PostgreSQL compute plans before confirming. The configured plans are paid; check [Render's current pricing](https://render.com/pricing). Render's free PostgreSQL plan does not provide recovery or managed logical backups. See [Render's Postgres recovery and backups guide](https://render.com/docs/postgresql-backups).
-5. Create the Blueprint resources and wait for the `/health` check to pass.
-6. Choose a chat provider. For Gemini, add `CHAT_PROVIDER=gemini` and `GEMINI_API_KEY` using a key from [Google AI Studio](https://aistudio.google.com/app/apikey). For n8n, add `CHAT_PROVIDER=n8n`, `N8N_CHAT_WEBHOOK_URL`, and `N8N_CHAT_WEBHOOK_TOKEN`. Save and redeploy after changing private environment variables. See the [n8n integration guide](N8N_INTEGRATION.md).
-7. Open the service's `onrender.com` URL. Create the first pharmacy account, then verify it by signing out and back in.
-8. Add your custom domain in the Render service settings if you have one.
+1. Push this project to the GitHub repository connected to your Render account. Keep `.env`, `pharmacy.db`, and credentials out of Git.
+2. Sign in to Render, choose **New → Blueprint**, and select the Pharmacy repository. Render reads [`../render.yaml`](../render.yaml).
+3. For `DATABASE_URL`, paste the Neon connection string for project `fragrant-unit-31019970`, branch `production`, database `neondb`. Copy it from Neon’s **Connect** dialog. Keep the URL private; enter it only in Render. The Neon endpoint and Render service are both in Ohio.
+4. Confirm the service uses the **Free** plan, then deploy. Wait for the `/health` check to pass.
+5. Open the public `onrender.com` URL shown in the Render service dashboard. Create a pharmacy account and test sign-out/sign-in. Send that link to the people you want to try the app.
+6. AI chat needs a Gemini API key. If you want chat enabled, add `GEMINI_API_KEY` as a private environment variable in Render and redeploy. Get a key from [Google AI Studio](https://aistudio.google.com/app/apikey). Without it, the rest of the application can still be tried, but chat will report that it is not configured. For n8n, use `CHAT_PROVIDER=n8n`, `N8N_CHAT_WEBHOOK_URL`, and `N8N_CHAT_WEBHOOK_TOKEN`; see the [n8n integration guide](N8N_INTEGRATION.md).
 
 ## Production configuration
 
@@ -19,11 +17,11 @@ The Blueprint sets:
 
 - `ENVIRONMENT=production`, which refuses SQLite and insecure cookies.
 - `COOKIE_SECURE=true`, with HttpOnly and SameSite=Lax session cookies.
-- `DATABASE_URL` from the private PostgreSQL connection string.
-- Provider credentials are private Render environment secrets for server-side chat calls. They are not exposed to the browser or stored in PostgreSQL.
+- `DATABASE_URL` as a private Render environment variable. It must point to the Neon PostgreSQL database, never a local SQLite file.
+- Provider credentials are optional private Render environment secrets for server-side chat calls. They are not exposed to the browser or stored in PostgreSQL.
 - `CHAT_MODEL_ID` and `CHAT_MAX_OUTPUT_TOKENS` configure the chat provider/model and answer length.
 - `FORWARDED_ALLOW_IPS=*` so Uvicorn can honor the hosting proxy's HTTPS and client headers.
-- Frankfurt for both app and database to keep the deployment region consistent.
+- Ohio for the Render service, close to the Neon database region.
 
 The `/health` endpoint runs `SELECT 1` against the configured database. Signup and login are served by the app; all pharmacy operations require an authenticated account. Gemini uses tenant-scoped read-only tools for product, inventory, expiry, and sales queries. When chat is routed through n8n, its AI Agent can call the same tools with a signed, short-lived token limited to one pharmacy. Daily inventory monitoring runs in the web service process and stores in-app alerts in PostgreSQL; it does not create orders or edit business stock.
 
@@ -31,7 +29,13 @@ In Gemini mode, chat messages, recent context, and relevant pharmacy tool result
 
 ## Runtime and data
 
-Render installs `backend/requirements.txt` with its native Python runtime and starts Uvicorn using the service's `PORT`. For a local SQLite run, use the regular PowerShell command in the main README. SQLite is for development only.
+Render installs `backend/requirements.txt` with its native Python runtime and starts Uvicorn using the service's `PORT`. For a local SQLite run, use the regular PowerShell command in the main README. SQLite is for development only. This free service has an ephemeral local filesystem, so pharmacy records must stay in Neon.
+
+## Free service limitations and access
+
+Render Free sleeps after 15 minutes without incoming traffic. The first visit after sleep can take about a minute while it starts. Free service hours and bandwidth are limited by Render; this setup is for a temporary preview, not a production guarantee. See [Render Free service limitations](https://render.com/docs/free).
+
+The site URL is public, and signup is currently open without email verification. People with the link can create accounts; each account's pharmacy records are isolated from other accounts. The URL is shareable, but it is not an invite-only security gate.
 
 ## Release follow-up
 

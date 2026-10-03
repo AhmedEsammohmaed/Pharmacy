@@ -24,9 +24,23 @@ SESSION_LIFETIME = timedelta(days=14)
 SCRYPT_N = 1 << 15
 SCRYPT_R = 8
 SCRYPT_P = 1
+PBKDF2_ITERATIONS = 600_000
 
 
 def _hash_password(password: str) -> str:
+    if get_settings().cloudflare_worker:
+        salt = secrets.token_bytes(16)
+        digest = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt,
+            PBKDF2_ITERATIONS,
+            dklen=32,
+        )
+        salt_text = base64.urlsafe_b64encode(salt).decode("ascii")
+        digest_text = base64.urlsafe_b64encode(digest).decode("ascii")
+        return f"pbkdf2_sha256${PBKDF2_ITERATIONS}${salt_text}${digest_text}"
+
     salt = secrets.token_bytes(16)
     digest = hashlib.scrypt(
         password.encode("utf-8"),
@@ -44,22 +58,39 @@ def _hash_password(password: str) -> str:
 
 def _verify_password(password: str, encoded_hash: str) -> bool:
     try:
-        algorithm, n, r, p, salt_text, digest_text = encoded_hash.split("$")
-        if algorithm != "scrypt":
+        fields = encoded_hash.split("$")
+        algorithm = fields[0]
+        if algorithm == "pbkdf2_sha256" and len(fields) == 4:
+            _, iterations_text, salt_text, digest_text = fields
+            iterations = int(iterations_text)
+            if not 100_000 <= iterations <= 2_000_000:
+                return False
+            salt = base64.urlsafe_b64decode(salt_text.encode("ascii"))
+            expected = base64.urlsafe_b64decode(digest_text.encode("ascii"))
+            actual = hashlib.pbkdf2_hmac(
+                "sha256",
+                password.encode("utf-8"),
+                salt,
+                iterations,
+                dklen=len(expected),
+            )
+        elif algorithm == "scrypt" and len(fields) == 6:
+            _, n, r, p, salt_text, digest_text = fields
+            salt = base64.urlsafe_b64decode(salt_text.encode("ascii"))
+            expected = base64.urlsafe_b64decode(digest_text.encode("ascii"))
+            actual = hashlib.scrypt(
+                password.encode("utf-8"),
+                salt=salt,
+                n=int(n),
+                r=int(r),
+                p=int(p),
+                dklen=len(expected),
+                maxmem=64 * 1024 * 1024,
+            )
+        else:
             return False
-        salt = base64.urlsafe_b64decode(salt_text.encode("ascii"))
-        expected = base64.urlsafe_b64decode(digest_text.encode("ascii"))
-        actual = hashlib.scrypt(
-            password.encode("utf-8"),
-            salt=salt,
-            n=int(n),
-            r=int(r),
-            p=int(p),
-            dklen=len(expected),
-            maxmem=64 * 1024 * 1024,
-        )
         return hmac.compare_digest(actual, expected)
-    except (ValueError, TypeError, MemoryError):
+    except (AttributeError, ValueError, TypeError, MemoryError):
         return False
 
 
@@ -208,4 +239,11 @@ def current_account(user: Annotated[User, Depends(get_current_user)]) -> AuthRes
     return _auth_response(user)
 
 
-_DUMMY_PASSWORD_HASH = _hash_password("not-a-real-pharmacy-password")
+if get_settings().cloudflare_worker:
+    _DUMMY_PASSWORD_HASH = (
+        f"pbkdf2_sha256${PBKDF2_ITERATIONS}$"
+        "AAAAAAAAAAAAAAAAAAAAAA==$"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    )
+else:
+    _DUMMY_PASSWORD_HASH = _hash_password("not-a-real-pharmacy-password")

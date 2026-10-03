@@ -7,10 +7,10 @@ Model output is unverified and is not authoritative pharmacy or medical advice.
 
 from __future__ import annotations
 
-import threading
 from typing import Any
 
 from backend.config import Settings, get_settings
+from backend.runtime import make_lock
 
 
 class LLMDependencyError(RuntimeError):
@@ -25,7 +25,7 @@ class LLMService:
         self._tokenizer: Any | None = None
         self._model: Any | None = None
         self._torch: Any | None = None
-        self._lock = threading.RLock()
+        self._lock = make_lock(reentrant=True)
 
     @property
     def model_id(self) -> str:

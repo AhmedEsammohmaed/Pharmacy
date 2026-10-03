@@ -1,5 +1,5 @@
+import asyncio
 from collections import defaultdict, deque
-from threading import Lock
 from time import monotonic
 from typing import Annotated
 
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from backend.agent.service import PharmacyAgent
 from backend.auth import get_current_user
 from backend.chat_schemas import ChatRequest, ChatResponse
+from backend.config import get_settings
 from backend.database import get_db
 from backend.llm.gemini_service import (
     ChatNotConfiguredError,
@@ -16,6 +17,7 @@ from backend.llm.gemini_service import (
     ChatRateLimitError,
 )
 from backend.models import User
+from backend.runtime import make_lock
 
 router = APIRouter(prefix="/chat", tags=["AI chat"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
@@ -24,7 +26,7 @@ _service = PharmacyAgent()
 _RATE_LIMIT = 10
 _RATE_WINDOW_SECONDS = 60
 _REQUESTS_BY_USER: dict[int, deque[float]] = defaultdict(deque)
-_RATE_LOCK = Lock()
+_RATE_LOCK = make_lock()
 
 
 def _check_rate_limit(user_id: int) -> None:
@@ -44,14 +46,28 @@ def _check_rate_limit(user_id: int) -> None:
 
 
 @router.post("/messages", response_model=ChatResponse)
-def send_chat_message(
+async def send_chat_message(
     payload: ChatRequest,
     user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> ChatResponse:
     _check_rate_limit(user.id)
     try:
-        answer = _service.reply(payload.message, payload.history, db, user.pharmacy_id)
+        if get_settings().cloudflare_worker:
+            answer = await _service.reply_cloudflare(
+                payload.message,
+                payload.history,
+                db,
+                user.pharmacy_id,
+            )
+        else:
+            answer = await asyncio.to_thread(
+                _service.reply,
+                payload.message,
+                payload.history,
+                db,
+                user.pharmacy_id,
+            )
     except ChatNotConfiguredError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
